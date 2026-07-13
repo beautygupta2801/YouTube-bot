@@ -282,7 +282,7 @@ The extension is not currently published on the Chrome Web Store.
 
 ## Author
 
-**Harshit Kumar Vaibhav**
+**Beauty Kumari**
 
 B.Tech in Computer Science and Engineering
 National Institute of Technology Jalandhar
