@@ -288,12 +288,6 @@ B.Tech in Computer Science and Engineering
 National Institute of Technology Jalandhar
 
 
-* LinkedIn: `https://github.com/summu2801/YouTube-bot`
-
-## Repository
-
-`https://github.com/summu2801/YouTube-bot`
-
 ## License
 
 This project is intended for educational and development purposes.
