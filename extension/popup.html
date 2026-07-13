@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>YouTube AI Assistant</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <h3>YouTube AI</h3>
+        <div id="status" class="status">Checking video...</div>
+        
+        <div id="main-ui" style="display: none;">
+            <p class="video-info"><strong>Video ID:</strong> <span id="video-id-display"></span></p>
+            <textarea id="question-input" placeholder="Ask a question about this video..."></textarea>
+            <button id="ask-btn">Ask</button>
+            <div id="loading" class="loading" style="display: none;">Waiting for response...</div>
+            <div id="response-area" class="response-area" style="display: none;"></div>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>

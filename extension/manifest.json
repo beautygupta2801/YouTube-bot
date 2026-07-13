@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube AI Assistant",
+  "version": "1.0",
+  "description": "Minimal AI assistant for YouTube videos",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "YouTube AI"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
