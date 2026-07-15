@@ -77,7 +77,7 @@ You_bot/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/summu2801/YouTube-bot.git
+git clone https://github.com/beautygupta2801/YouTube-bot.git
 cd YouTube-bot/backend
 ```
 
@@ -214,12 +214,12 @@ Runs locally via Chrome's "Load unpacked" mode + a local FastAPI backend. Not ye
 
 ## Author
 
-**Harshit Kumar Vaibhav**
+**Beauty Kumari**
 B.Tech in Computer Science and Engineering, National Institute of Technology Jalandhar
 
 ## Repository
 
-`https://github.com/summu2801/YouTube-bot`
+`https://github.com/beautygupta2801/YouTube-bot`
 
 ## License
 
