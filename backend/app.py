@@ -1,14 +1,17 @@
+
 import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled
+from youtube_transcript_api import (
+    YouTubeTranscriptApi,
+    TranscriptsDisabled,
+    NoTranscriptFound
+)
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from dotenv import load_dotenv
-from langchain_google_genai import (
-    ChatGoogleGenerativeAI,
-    GoogleGenerativeAIEmbeddings
-)
+from langchain_openai import ChatOpenAI
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import (
@@ -24,10 +27,10 @@ import uvicorn
 # =========================
 load_dotenv()
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-if not GOOGLE_API_KEY:
-    raise ValueError("GOOGLE_API_KEY not found in .env file")
+if not OPENROUTER_API_KEY:
+    raise ValueError("OPENROUTER_API_KEY not found in .env file")
 
 # =========================
 # FASTAPI APP
@@ -67,10 +70,10 @@ def get_video_chain(video_id: str):
         return video_chains[video_id]
 
     try:
-        # Fetch transcript
+        # Fetch transcript (tries English first, falls back to Hindi)
         transcript_list = YouTubeTranscriptApi().fetch(
             video_id,
-            languages=["en"]
+            languages=["en", "hi"]
         )
 
         transcript = " ".join(
@@ -80,13 +83,19 @@ def get_video_chain(video_id: str):
     except TranscriptsDisabled:
         raise HTTPException(
             status_code=400,
-            detail="No captions available for this video."
+            detail="This video has captions disabled by the uploader, so I can't process it. Try a different video."
+        )
+
+    except NoTranscriptFound:
+        raise HTTPException(
+            status_code=400,
+            detail="This video doesn't have captions in English or Hindi. YouBot only works on videos with captions available — check the CC icon on the video to confirm."
         )
 
     except Exception as e:
         raise HTTPException(
             status_code=400,
-            detail=f"Error fetching transcript: {str(e)}"
+            detail=f"[DEBUG] {type(e).__name__}: {str(e)}"
         )
 
     # =========================
@@ -102,10 +111,7 @@ def get_video_chain(video_id: str):
     # =========================
     # EMBEDDINGS
     # =========================
-    embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/gemini-embedding-001",
-        google_api_key=GOOGLE_API_KEY
-    )
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     # =========================
     # VECTOR STORE
@@ -126,10 +132,11 @@ def get_video_chain(video_id: str):
     # =========================
     # LLM
     # =========================
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+    llm = ChatOpenAI(
+        model="nvidia/nemotron-3-ultra-550b-a55b:free",
         temperature=0.3,
-        google_api_key=GOOGLE_API_KEY
+        openai_api_key=OPENROUTER_API_KEY,
+        openai_api_base="https://openrouter.ai/api/v1"
     )
 
     # =========================
@@ -192,13 +199,13 @@ async def ask_question(req: AskRequest):
     if not req.video_id:
         raise HTTPException(
             status_code=400,
-            detail="video_id is required"
+            detail="Please provide a video ID."
         )
 
     if not req.question:
         raise HTTPException(
             status_code=400,
-            detail="question is required"
+            detail="Please enter a question."
         )
 
     try:
@@ -210,10 +217,25 @@ async def ask_question(req: AskRequest):
             "answer": answer
         }
 
+    except HTTPException:
+        # Let our own clean errors (transcript issues, etc.) pass through unchanged
+        raise
+
     except Exception as e:
+        error_msg = str(e)
+
+        if "404" in error_msg and "unavailable for free" in error_msg:
+            detail = "The AI model is temporarily unavailable on the free tier. Try again in a moment, or check openrouter.ai/models for a current free model."
+        elif "401" in error_msg or "authentication" in error_msg.lower():
+            detail = "Invalid or missing OpenRouter API key. Check your .env file."
+        elif "429" in error_msg:
+            detail = "Rate limit reached. Wait a minute and try again."
+        else:
+            detail = "Something went wrong while generating the answer. Please try again."
+
         raise HTTPException(
             status_code=500,
-            detail=str(e)
+            detail=detail
         )
 
 # =========================

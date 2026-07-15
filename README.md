@@ -1,34 +1,8 @@
-# YouBot — RAG-Powered YouTube Video Chat Extension
+# YouBot — Chat with Any YouTube Video
 
-YouBot is an AI-powered Chrome extension that lets users ask natural-language questions about the YouTube video they are currently watching and receive context-aware answers grounded in the video's transcript.
+YouBot is a Chrome extension that lets you ask questions about a YouTube video you're watching and get answers based on the video's actual transcript — not the AI's general knowledge.
 
-Instead of manually searching through long videos, users can ask questions directly from the extension popup. YouBot processes the video transcript through a Retrieval-Augmented Generation (RAG) pipeline and uses Google Gemini to generate relevant, context-aware responses.
-
-## Features
-
-* Chat with the currently playing YouTube video
-* Automatically detects the active YouTube video
-* Extracts and processes video transcript content
-* Supports natural-language questions
-* RAG-based retrieval for relevant transcript context
-* LangChain-powered document processing pipeline
-* Gemini-powered response generation
-* FastAPI backend for AI and retrieval workflows
-* Lightweight Chrome extension interface
-* Loading states and error handling
-* Context-grounded answers based on video content
-
-## Tech Stack
-
-| Category          | Technologies                                |
-| ----------------- | ------------------------------------------- |
-| Browser Extension | JavaScript, HTML, CSS, Chrome Extension API |
-| Backend           | Python, FastAPI                             |
-| AI Framework      | LangChain                                   |
-| AI Model          | Google Gemini API                           |
-| Architecture      | Retrieval-Augmented Generation (RAG)        |
-| Data Source       | YouTube Video Transcripts                   |
-| Communication     | REST APIs, Asynchronous Fetch               |
+You open a video, click the extension, ask a question like "what is this video about?", and get an answer grounded in what was actually said.
 
 ## How It Works
 
@@ -36,54 +10,45 @@ Instead of manually searching through long videos, users can ask questions direc
 YouTube Video
       |
       v
-Chrome Extension
-      |
-      | Detect Current Video
-      v
-Extract Video ID
+Chrome Extension (detects the video you're watching)
       |
       v
 FastAPI Backend
       |
       v
-Fetch Video Transcript
+Fetch video transcript (captions)
       |
       v
-Transcript Processing
+Split transcript into chunks
       |
       v
-Text Chunking with LangChain
+Convert chunks into embeddings (local, free — HuggingFace)
       |
       v
-Relevant Context Retrieval
+Find the chunks relevant to your question (FAISS search)
       |
       v
-User Question + Retrieved Context
+Send question + relevant chunks to an LLM (OpenRouter)
       |
       v
-Gemini API
-      |
-      v
-Context-Aware Answer
-      |
-      v
-Chrome Extension Popup
+Answer sent back to the extension popup
 ```
 
-## RAG Pipeline
+This is a **Retrieval-Augmented Generation (RAG)** pipeline: instead of asking the AI to answer from memory, it retrieves the actual relevant parts of the transcript first, then asks the AI to answer using only that text.
 
-YouBot uses a Retrieval-Augmented Generation pipeline to improve the relevance of generated answers.
+## Tech Stack
 
-The workflow consists of:
+| Category | Technology |
+|---|---|
+| Browser Extension | JavaScript, HTML, CSS, Chrome Extension API |
+| Backend | Python, FastAPI |
+| AI Framework | LangChain |
+| LLM (answer generation) | OpenRouter (free-tier models) |
+| Embeddings | HuggingFace `sentence-transformers` (runs locally, free) |
+| Vector Search | FAISS |
+| Data Source | YouTube video captions/transcripts |
 
-1. Retrieve the transcript of the active YouTube video.
-2. Process and split the transcript into smaller chunks.
-3. Use LangChain to manage the document-processing and retrieval workflow.
-4. Identify transcript context relevant to the user's question.
-5. Send the retrieved context together with the question to Gemini.
-6. Return the generated answer to the Chrome extension popup.
-
-This approach helps ground responses in the actual content of the video rather than relying only on the model's general knowledge.
+**Why OpenRouter instead of Gemini directly?** OpenRouter gives access to multiple free LLMs through one API, without needing Google Cloud billing set up. Embeddings run locally via HuggingFace, so nothing there needs an API key either — the only external API call is to OpenRouter for generating the final answer.
 
 ## Project Structure
 
@@ -91,10 +56,10 @@ This approach helps ground responses in the actual content of the video rather t
 You_bot/
 │
 ├── backend/
-│   ├── main.py
+│   ├── app.py
 │   ├── requirements.txt
 │   ├── .env
-│   └── ...
+│   └── venv/
 │
 ├── extension/
 │   ├── manifest.json
@@ -107,188 +72,150 @@ You_bot/
 └── README.md
 ```
 
-> The exact folder structure may vary depending on your local setup.
-
 ## Getting Started
 
-### 1. Clone the Repository
+### 1. Clone the repository
 
 ```bash
-git clone https://github.com/itzmit49/You_bot.git
-cd You_bot
+git clone https://github.com/summu2801/YouTube-bot.git
+cd YouTube-bot/backend
 ```
 
-### 2. Set Up the Backend
+### 2. Set up the backend
 
-Navigate to the backend directory:
+Create and activate a virtual environment:
 
+**macOS/Linux:**
 ```bash
-cd backend
-```
-
-Create a Python virtual environment:
-
-```bash
-python -m venv venv
-```
-
-Activate the virtual environment.
-
-On Windows:
-
-```bash
-venv\Scripts\activate
-```
-
-On macOS/Linux:
-
-```bash
+python3 -m venv venv
 source venv/bin/activate
 ```
 
-Install the required dependencies:
+**Windows:**
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+Install dependencies:
 
 ```bash
-pip install -r requirements.txt
+pip install fastapi uvicorn python-dotenv youtube-transcript-api langchain-text-splitters langchain-openai langchain-community langchain-huggingface faiss-cpu sentence-transformers
 ```
 
-### 3. Configure Environment Variables
+### 3. Get a free OpenRouter API key
 
-Create a `.env` file inside the backend directory:
+1. Go to [openrouter.ai](https://openrouter.ai) and sign up (no credit card needed)
+2. Go to **Keys** → create a new key
+
+### 4. Configure environment variables
+
+Create a `.env` file inside `backend/`:
 
 ```env
-GEMINI_API_KEY=your_gemini_api_key_here
+OPENROUTER_API_KEY=your_openrouter_key_here
 ```
 
-Never commit your `.env` file or API keys to GitHub.
-
-Add environment files to `.gitignore`:
-
+Never commit this file. Add to `.gitignore`:
 ```gitignore
 .env
-.env.*
-!.env.example
-backend/.env
+venv/
 ```
 
-You can also create a safe `.env.example` file:
-
-```env
-GEMINI_API_KEY=your_api_key_here
-```
-
-### 4. Start the FastAPI Backend
-
-Run the backend server:
+### 5. Run the backend
 
 ```bash
-uvicorn main:app --reload
+python3 app.py
 ```
 
-The backend should now run locally, typically at:
-
+You should see:
 ```text
-http://127.0.0.1:8000
+Server running on http://127.0.0.1:8000
 ```
 
-### 5. Load the Chrome Extension
+Leave this terminal running.
 
-1. Open Google Chrome.
-2. Go to `chrome://extensions/`.
-3. Enable **Developer mode**.
-4. Click **Load unpacked**.
-5. Select the folder containing `manifest.json`.
-6. Pin YouBot from the Chrome extensions menu.
+### 6. Load the Chrome extension
 
-### 6. Use YouBot
+1. Open Chrome → go to `chrome://extensions/`
+2. Enable **Developer mode** (top right)
+3. Click **Load unpacked**
+4. Select the `extension/` folder
+5. Pin YouBot from the extensions toolbar
 
-1. Open a YouTube video with an available transcript.
-2. Click the YouBot extension icon.
-3. Enter a question about the video.
-4. Submit the question.
-5. Receive an AI-generated response grounded in the video transcript.
+### 7. Use it
 
-Example questions:
+1. Open a YouTube video **that has captions available** (click the CC icon in the player to check — see note below)
+2. Click the YouBot extension icon
+3. Type a question
+4. Get an answer grounded in the transcript
 
-```text
-What is the main topic of this video?
-```
+## API Reference
 
-```text
-Explain the concept discussed at the beginning.
-```
+**Endpoint:** `POST /api/ask`
 
-```text
-What are the key points mentioned in the video?
-```
-
-```text
-Summarize the explanation of machine learning.
-```
-
-## API Flow
-
-The Chrome extension communicates asynchronously with the FastAPI backend.
-
-Example request:
-
+**Request:**
 ```json
 {
-  "video_id": "VIDEO_ID",
-  "question": "What are the key concepts explained in this video?"
+  "video_id": "aircAruvnKk",
+  "question": "What is this video about?"
 }
 ```
 
-Example response:
+`video_id` is the part after `v=` in a YouTube URL.
 
+**Response:**
 ```json
 {
-  "answer": "The video primarily explains..."
+  "answer": "The video explains..."
 }
 ```
+
+## ⚠️ Important Limitation: Captions Required
+
+YouBot works by reading a video's **captions/transcript** — it never watches or listens to the video itself. This means:
+
+- **Works:** videos with English (or Hindi) captions — auto-generated or manual
+- **Doesn't work:** videos with no captions at all, or captions only in an unsupported language
+
+Check any video by clicking the **CC** button in the YouTube player. If it's greyed out or missing, YouBot can't process that video.
+
+**Known-working test videos:**
+```text
+aircAruvnKk   — 3Blue1Brown, "But what is a neural network?"
+8jPQjjsBbIc   — TED Talk, Ken Robinson
+```
+
+## Free-Tier Notes
+
+- **OpenRouter free models change over time.** If you get a `404` error mentioning a model is "unavailable for free," check [openrouter.ai/models](https://openrouter.ai/models), filter by free pricing, and update the `model=` value in `app.py`.
+- Free tier: ~50 requests/day, 20/minute. A one-time $10 credit purchase (non-expiring) raises this to 1,000/day if needed.
+- Embeddings run entirely on your machine — no rate limits, no cost, ever.
 
 ## Security
 
-API keys must never be stored directly inside:
-
-* `popup.js`
-* `manifest.json`
-* frontend JavaScript files
-* committed `.env` files
-
-All Gemini API requests should be handled through the backend.
-
-If an API key has accidentally been committed to Git history, revoke or rotate it immediately before continuing development.
+- API keys must never appear in `popup.js`, `manifest.json`, or any committed file.
+- All LLM calls go through the backend — the extension never talks to OpenRouter directly.
+- If a key is ever accidentally committed, revoke and rotate it immediately.
 
 ## Current Status
 
-YouBot is currently available as a source-code project and can be run locally using Chrome's **Load unpacked** extension mode together with the FastAPI backend.
-
-The extension is not currently published on the Chrome Web Store.
+Runs locally via Chrome's "Load unpacked" mode + a local FastAPI backend. Not yet published on the Chrome Web Store.
 
 ## Future Improvements
 
-* Publish the extension on the Chrome Web Store
-* Deploy the FastAPI backend
-* Add conversational memory for follow-up questions
-* Add source timestamps for retrieved transcript sections
-* Support multilingual transcripts
-* Add video summarization
-* Improve retrieval quality for long videos
-* Add streaming AI responses
-* Cache processed transcripts
-* Add support for transcript search and navigation
-* Improve popup accessibility and keyboard navigation
+- Graceful error message when a video has no usable captions (instead of a raw error)
+- Deploy the backend so it doesn't need to run locally
+- Add conversational memory for follow-up questions
+- Add source timestamps for retrieved transcript sections
+- Add a dedicated "Summarize this video" button
+- Cache processed transcripts to avoid re-embedding on every restart
+- Support more caption languages
 
 ## Author
 
 **Harshit Kumar Vaibhav**
-
-B.Tech in Computer Science and Engineering
-National Institute of Technology Jalandhar
-
-
-* LinkedIn: `https://github.com/summu2801/YouTube-bot`
+B.Tech in Computer Science and Engineering, National Institute of Technology Jalandhar
 
 ## Repository
 
@@ -296,7 +223,7 @@ National Institute of Technology Jalandhar
 
 ## License
 
-This project is intended for educational and development purposes.
+Educational and development purposes.
 
 ---
 
