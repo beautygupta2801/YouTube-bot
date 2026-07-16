@@ -2,4 +2,5 @@ backend/venv/
 node_modules/
 .env
 __pycache__/
-*.pyc
+*.pycbackend/beauty/
+backend/venv/
