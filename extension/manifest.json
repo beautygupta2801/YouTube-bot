@@ -1,3 +1,4 @@
+
 {
   "manifest_version": 3,
   "name": "YouTube AI Assistant",
@@ -5,7 +6,8 @@
   "description": "Minimal AI assistant for YouTube videos",
   "permissions": [
     "activeTab",
-    "scripting"
+    "scripting",
+    "sidePanel"
   ],
   "host_permissions": [
     "*://*.youtube.com/*",
@@ -13,8 +15,13 @@
     "http://127.0.0.1/*"
   ],
   "action": {
-    "default_popup": "popup.html",
     "default_title": "YouTube AI"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
